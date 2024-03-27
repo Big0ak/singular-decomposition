@@ -77,30 +77,45 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 		double beta = Cube_root((-q / 2.0 - std::sqrt(D)));
 
 		answer[0].real(alpha + beta);
+		answer[0].imag(0.);
 
 		answer[1].real(-(alpha + beta) / 2.0);
 		answer[1].imag(std::sqrt(3) * ((alpha - beta) / 2));
 
 		answer[2].real(-(alpha + beta) / 2.0);
 		answer[2].imag(-std::sqrt(3) * ((alpha - beta) / 2));
-		
-		return;
 	}
 	else if (D < 0)
 	{
-		double phi = std::atan(-2 * std::sqrtf(D) / q);
+		// x0, x1, x2 - R
+		std::complex<double> t;
+		t.real(-q / 2);
+		t.imag(std::sqrt(-D));
+		double t_r = std::abs(t);
+		double t_phi = std::arg(t);
+
+		double phi = 0;
+		if (q < 0)
+			phi = std::atan(-2 * std::sqrt(-D) / q);
+		else if (q > 0)
+			phi = std::atan(-2 * std::sqrt(-D) / q) + M_PI;
+		else
+			phi = M_PI / 2;
+			
+		//double r = std::sqrt(-std::pow(p, 3) / 27);
 		double r = 2 * std::sqrt(-p / 3);
 
 		answer[0].real(r * std::cos(phi / 3.0));
 		answer[0].imag(0.);
 
-		answer[1].real(r * std::cos(phi + 2 * M_PI / 3.0));
+		answer[1].real(r * std::cos((phi + 2 * M_PI) / 3.0));
 		answer[1].imag(0.);
 
-		answer[2].real(r * std::cos(phi + 4 * M_PI / 3.0));
+		answer[2].real(r * std::cos((phi + 4 * M_PI) / 3.0));
 		answer[2].imag(0.);
 	}
 	else {
+		// x0, x1 == x2 - R
 		double alpha = Cube_root((-q / 2.0));
 	
 		answer[0].real(2.0 * alpha);
@@ -112,6 +127,12 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 		answer[2].real(-alpha);
 		answer[2].imag(0.);
 	}
+
+	answer[0].real(answer[0].real() - poly[2] / (3 * poly[3]));
+	answer[1].real(answer[1].real() - poly[2] / (3 * poly[3]));
+	answer[2].real(answer[2].real() - poly[2] / (3 * poly[3]));
+
+	return;
 }
 
 int main()
@@ -128,24 +149,49 @@ int main()
 		m[i].resize(rows);
 
 	m = { {1,1,3}, {1,5,1}, {3,1,1} };
+	
+// -----------------------------------------------------------------------
+	//std::vector<double> lambda_poly = multiply_polynomials(
+	//	multiply_polynomials({ m[0][0], -1 }, 2, { m[1][1], -1 }, 2),
+	//	3,
+	//	{ m[2][2], -1 },
+	//	2
+	//);
 
-	//Matrix a_t(m);
-	//a_t.transposition();
+	//lambda_poly[0] += m[1][0] * m[2][1] * m[0][2] + m[0][1] * m[1][2] * m[2][0];
 
-	//Matrix a(m);
-	//Matrix gram(a_t * a);
+	////lambda_poly[0] = 30;
+	////lambda_poly[1] = -19;
+	////lambda_poly[2] = 0;
+	////lambda_poly[3] = 1;
+
+	//std::vector<std::complex<double>> answer;
+	//Cardano_real_number(lambda_poly, answer);
+// -----------------------------------------------------------------------
+
+	Matrix a_t(m);
+	a_t.transposition();
+
+	Matrix a(m);
+
+	Matrix gram;
+	gram = a_t * a;
+
+	std::cout << gram;
 
 	std::vector<double> lambda_poly = multiply_polynomials(
-		multiply_polynomials({ m[0][0], -1 }, 2, { m[1][1], -1 }, 2),
+		multiply_polynomials({ gram(0, 0), -1 }, 2, { gram(1, 1), -1 }, 2),
 		3,
-		{ m[2][2], -1 },
+		{ gram(2, 2), -1 },
 		2
 	);
 
-	lambda_poly[0] += m[1][0] * m[2][1] * m[0][2] + m[0][1] * m[1][2] * m[2][0];
+	lambda_poly[0] += gram(1, 0) * gram(2, 1) * gram(0 ,2) + gram(0, 1) * gram(1, 2) * gram(2, 0);
 
 	std::vector<std::complex<double>> answer;
 	Cardano_real_number(lambda_poly, answer);
+
+
 
 	return 0;
 }
