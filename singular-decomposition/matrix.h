@@ -6,7 +6,6 @@ class Matrix
 protected:
 	std::vector<std::vector<double>> matrix;
 	int cols, rows;
-
 public:
 	Matrix() : cols(0), rows(0) {}
 	Matrix(const Matrix& M);
@@ -14,13 +13,15 @@ public:
 	Matrix(int _cols, int _rows);
 	~Matrix();
 
-	double& operator()(int i, int j) { return matrix[i][j]; }	// получение элемента
-	//void operator()(int i, int j, double data) { matrix[i][j] = data; }   // установка элемента
-	Matrix operator* (const Matrix _matrix);
+	double& operator () (int i, int j) { return matrix[i][j]; }	// get elem
+	void operator()(int i, int j, double data) { matrix[i][j] = data; }   // set elem
+	Matrix operator * (const Matrix&);
+	Matrix operator + (const Matrix&);
+	Matrix operator - (const Matrix&);
+
 	friend std::ostream& operator << (std::ostream& fo, const Matrix& M);
 
 	void transposition();
-	void multiplication();
 	void reverse();
 	void determinant();
 };
@@ -55,24 +56,45 @@ Matrix::Matrix(int _cols, int _rows)
 	rows = _rows;
 }
 
-Matrix::~Matrix()
-{
+Matrix::~Matrix() { }
 
-}
-
-Matrix Matrix::operator* (const Matrix _matrix)
+Matrix Matrix::operator * (const Matrix& M)
 {
-	Matrix res(rows, _matrix.cols);
-	if (cols == _matrix.rows)
+	Matrix res(rows, M.cols);
+	if (cols == M.rows)
 	{
 		for (int i = 0; i < rows; i++)
-			for (int j = 0; j < _matrix.cols; j++)
+			for (int j = 0; j < M.cols; j++)
 			{
 				double sum = 0;
 				for (int k = 0; k < cols; k++)
-					sum += this->matrix[i][k] * _matrix.matrix[k][j];
+					sum += this->matrix[i][k] * M.matrix[k][j];
 				res.matrix[i][j] = sum;
 			}
+	}
+	return res;
+}
+
+Matrix Matrix::operator + (const Matrix& M)
+{
+	Matrix res(*this);
+	if (rows == M.rows && cols == M.cols)
+	{
+		for (int i = 0; i < rows; i++)
+			for (int j = 0; j < cols; j++)
+				res.matrix[i][j] += M.matrix[i][j];
+	}
+	return res;
+}
+
+Matrix Matrix::operator - (const Matrix& M)
+{
+	Matrix res(*this);
+	if (rows == M.rows && cols == M.cols)
+	{
+		for (int i = 0; i < rows; i++)
+			for (int j = 0; j < cols; j++)
+				res.matrix[i][j] -= M.matrix[i][j];
 	}
 	return res;
 }

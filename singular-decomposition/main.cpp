@@ -3,10 +3,12 @@
 #include <vector>
 #include <math.h>
 #include <complex>
+#include <algorithm>
 
 #include "matrix.h"
 
 #define M_PI	3.14159265358979323846
+#define matrix_double std::vector<std::vector<double>>
 
 void print(std::vector<double> a, int n)
 {
@@ -135,6 +137,156 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	return;
 }
 
+// find maximum element model under diagonal
+bool Find_max(Matrix& a, int n, double epsilon, std::pair<int, int>& max_index)
+{
+	max_index.first = -1;
+	max_index.second = -1;
+	double max = -1;
+	for (int i = 1; i < n; i++)
+		for (int j = 0; j < i; j++)
+			if (std::abs(a(i, j)) > max && std::abs(a(i, j)) > epsilon)
+			{
+				max = std::abs(a(i, j));
+				max_index.first = i;
+				max_index.second = j;
+			}
+	return max == -1 ? false : true;
+}
+
+double sign(double x)
+{
+	if (x < 0)
+		return -1.;
+	
+	if (x > 0)
+		return 1.;
+
+	return 0;
+}
+
+/*
+* input:
+*	m - symmetric square matrix
+*   epsilon_elem - maximum non-diagonal element
+*   max_rotation - max count rotation
+* 
+* result:
+*	
+*/
+void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<double>& eigenvalues, Matrix& T)
+{
+	bool flag = true;
+	int count_rotation = 0;
+	double key_elem = 0;
+	std::vector<double> b_im;
+	b_im.resize(n);
+	std::vector<double> b_jm;
+	b_jm.resize(n);
+	
+	// work only with under diagonal elements
+	while (flag)
+	{
+		std::pair<int, int> index;
+		if (Find_max(a, n, epsilon_elem, index))
+		{
+			key_elem = a(index.first, index.second);
+			double p = 2 * key_elem;
+			double q = a(index.first, index.first) - a(index.second, index.second);
+			double d = std::sqrt(std::pow(p, 2) + std::powf(q, 2));
+
+			/*
+			* rotation matrix
+			* T = |c -s|
+			*	  |s  c|
+			*/ 			
+			double c, s;
+			if (q == 0)
+			{
+				c = std::sqrt(2) / 2.;
+				s = c;
+			}
+			else {
+				double r = std::abs(q) / (2. * d);
+				c = std::sqrt(0.5 + r);
+				s = std::sqrt(0.5 - r * sign(p * q));
+			}
+
+			// multiplication: B = T'*A*T
+			
+			// diagonal elements 
+			double b_ii = std::pow(c, 2) * a(index.first, index.first) + std::pow(s, 2) * a(index.second, index.second) + 2 * c * s * a(index.first, index.second);
+			double b_jj = std::pow(c, 2) * a(index.first, index.first) + std::pow(s, 2) * a(index.second, index.second) - 2 * c * s * a(index.first, index.second);
+			a(index.first, index.first, b_ii);
+			a(index.second, index.second, b_jj);
+
+			a(index.first, index.second, 0); // i,j
+			a(index.second, index.first, 0); // j,i
+
+			// non-diagonal elements
+			// calculate elements
+			for (int m = 0; m < n; m++)
+			{
+				if (m != index.first && m != index.second)
+				{
+					b_im[m] = c * a(m, index.first) + s * a(m, index.second);
+					b_jm[m] = -s * a(m, index.first) + c * a(m, index.second);
+				}
+			}
+
+			// set elements
+			for (int m = 0; m < n; m++)
+			{
+				if (m != index.first && m != index.second)
+				{
+					a(index.first, m, b_im[m]);
+					a(m, index.first, b_im[m]);
+
+					a(index.second, m, b_jm[m]);
+					a(m, index.second, b_jm[m]);
+				}
+			}
+
+			// calculation eigenvectors
+			if (count_rotation == 0)
+			{
+				T = Matrix(n, n);
+				T(index.first, index.first, c);
+				T(index.second, index.second, c);
+				T(index.first, index.second, -s);
+				T(index.second, index.first, s);
+			}
+			else {
+				// T = T * T_new;
+			}
+		}
+		else {
+			flag = false;
+		}
+		
+		count_rotation++;
+		if (count_rotation >= max_rotation)
+			flag = false;
+	}
+
+	eigenvalues.resize(n);
+	for (int i = 0; i < n; i++)
+		eigenvalues[i] = a(i, i);
+}
+
+void SVD_value(Matrix a, std::vector<double> eigenvalues, Matrix eigenvector, Matrix& U, Matrix& S, Matrix& V)
+{
+	std::sort(eigenvalues.begin(), eigenvalues.end());
+	double r = -1;
+	for (int i = eigenvalues.size() - 1; i >= 0; i--)
+	{
+		if (eigenvalues[i] == 0)
+			r = i;
+	}
+
+
+}
+
 int main()
 {
 	//int n = 4, m = 3;
@@ -179,6 +331,8 @@ int main()
 
 	std::cout << gram;
 
+	// Cardano
+	/*
 	std::vector<double> lambda_poly = multiply_polynomials(
 		multiply_polynomials({ gram(0, 0), -1 }, 2, { gram(1, 1), -1 }, 2),
 		3,
@@ -188,10 +342,19 @@ int main()
 
 	lambda_poly[0] += gram(1, 0) * gram(2, 1) * gram(0 ,2) + gram(0, 1) * gram(1, 2) * gram(2, 0);
 
-	std::vector<std::complex<double>> answer;
-	Cardano_real_number(lambda_poly, answer);
+	std::vector<std::complex<double>> eigenvalues;
+	Cardano_real_number(lambda_poly, eigenvalues);
+	*/
 
+	// Jacobi
+	Matrix test(matrix_double{{ 1, 1, 3 }, { 1,5,1 }, { 3,1,1 }});
+	double epsilon_elem = 0.0001;
+	std::vector<double> eigenvalues;
+	Matrix T;
 
+	Jacobi(test, 3, epsilon_elem, 20, eigenvalues, T);
+
+	//SVD_value();
 
 	return 0;
 }
