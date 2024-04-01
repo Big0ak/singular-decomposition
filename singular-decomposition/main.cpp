@@ -4,6 +4,7 @@
 #include <math.h>
 #include <complex>
 #include <algorithm>
+#include <cstring>
 
 #include "matrix.h"
 
@@ -38,7 +39,7 @@ std::vector<double> multiply_polynomials(std::vector<double> a, int n, std::vect
 	return res;
 }
 
-double Cube_root(double x)
+double cube_root(double x)
 {
 	if (x > 0)
 	{
@@ -75,8 +76,8 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	if (D > 0)
 	{
 		// x0 - R, x1, x2 - C
-		double alpha = Cube_root((-q / 2.0 + std::sqrt(D)));
-		double beta = Cube_root((-q / 2.0 - std::sqrt(D)));
+		double alpha = cube_root((-q / 2.0 + std::sqrt(D)));
+		double beta = cube_root((-q / 2.0 - std::sqrt(D)));
 
 		answer[0].real(alpha + beta);
 		answer[0].imag(0.);
@@ -118,7 +119,7 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	}
 	else {
 		// x0, x1 == x2 - R
-		double alpha = Cube_root((-q / 2.0));
+		double alpha = cube_root((-q / 2.0));
 	
 		answer[0].real(2.0 * alpha);
 		answer[0].imag(0.);
@@ -137,8 +138,8 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	return;
 }
 
-// find maximum element model under diagonal
-bool Find_max(Matrix& a, int n, double epsilon, std::pair<int, int>& max_index)
+// find maximum element modem under diagonal
+bool find_max(Matrix& a, int n, double epsilon, std::pair<int, int>& max_index)
 {
 	max_index.first = -1;
 	max_index.second = -1;
@@ -172,23 +173,25 @@ double sign(double x)
 *   max_rotation - max count rotation
 * 
 * result:
-*	
+*	eigenvalues - eigen values
+*	T - eigen vectors (calls)
 */
 void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<double>& eigenvalues, Matrix& T)
 {
 	bool flag = true;
 	int count_rotation = 0;
 	double key_elem = 0;
-	std::vector<double> b_im;
+	std::vector<double> b_im, b_jm, t_mi, t_mj;
 	b_im.resize(n);
-	std::vector<double> b_jm;
 	b_jm.resize(n);
+	t_mi.resize(n);
+	t_mj.resize(n);
 	
 	// work only with under diagonal elements
 	while (flag)
 	{
 		std::pair<int, int> index;
-		if (Find_max(a, n, epsilon_elem, index))
+		if (find_max(a, n, epsilon_elem, index))
 		{
 			key_elem = a(index.first, index.second);
 			double p = 2 * key_elem;
@@ -209,21 +212,20 @@ void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<
 			else {
 				double r = std::abs(q) / (2. * d);
 				c = std::sqrt(0.5 + r);
-				s = std::sqrt(0.5 - r * sign(p * q));
+				s = std::sqrt(0.5 - r) * sign(p * q);
 			}
 
 			// multiplication: B = T'*A*T
-			
-			// diagonal elements 
-			double b_ii = std::pow(c, 2) * a(index.first, index.first) + std::pow(s, 2) * a(index.second, index.second) + 2 * c * s * a(index.first, index.second);
-			double b_jj = std::pow(c, 2) * a(index.first, index.first) + std::pow(s, 2) * a(index.second, index.second) - 2 * c * s * a(index.first, index.second);
-			a(index.first, index.first, b_ii);
-			a(index.second, index.second, b_jj);
+			std::fill(b_im.begin(), b_im.end(), 0);
+			std::fill(b_jm.begin(), b_jm.end(), 0);
 
-			a(index.first, index.second, 0); // i,j
-			a(index.second, index.first, 0); // j,i
+			// (i,j) = (j,i) = 0
 
-			// non-diagonal elements
+			// 1. diagonal elements 
+			b_im[index.first] = std::pow(c, 2) * a(index.first, index.first) + std::pow(s, 2) * a(index.second, index.second) + 2 * c * s * a(index.first, index.second);
+			b_jm[index.second] = std::pow(c, 2) * a(index.first, index.first) + std::pow(s, 2) * a(index.second, index.second) - 2 * c * s * a(index.first, index.second);
+
+			// 2. non-diagonal elements
 			// calculate elements
 			for (int m = 0; m < n; m++)
 			{
@@ -237,20 +239,20 @@ void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<
 			// set elements
 			for (int m = 0; m < n; m++)
 			{
-				if (m != index.first && m != index.second)
-				{
-					a(index.first, m, b_im[m]);
-					a(m, index.first, b_im[m]);
+				a(index.first, m, b_im[m]);
+				a(m, index.first, b_im[m]);
 
-					a(index.second, m, b_jm[m]);
-					a(m, index.second, b_jm[m]);
-				}
+				a(index.second, m, b_jm[m]);
+				a(m, index.second, b_jm[m]);
 			}
 
 			// calculation eigenvectors
 			if (count_rotation == 0)
 			{
 				T = Matrix(n, n);
+				for (int i = 0; i < n; i++)
+					T(i, i, 1);
+
 				T(index.first, index.first, c);
 				T(index.second, index.second, c);
 				T(index.first, index.second, -s);
@@ -258,15 +260,30 @@ void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<
 			}
 			else {
 				// T = T * T_new;
+				std::fill(t_mi.begin(), t_mi.end(), 0);
+				std::fill(t_mj.begin(), t_mj.end(), 0);
+				// calculate elements
+				for (int m = 0; m < n; m++)
+				{
+					t_mi[m] = c * T(m, index.first) + s * T(m, index.second);
+					t_mj[m] = -s * T(m, index.first) + c * T(m, index.second);
+				}
+
+				// set elements
+				for (int m = 0; m < n; m++)
+				{
+					T(m, index.first, t_mi[m]);
+					T(m, index.second, t_mj[m]);
+				}
 			}
+
+			count_rotation++;
+			if (count_rotation >= max_rotation)
+				flag = false;
 		}
 		else {
 			flag = false;
 		}
-		
-		count_rotation++;
-		if (count_rotation >= max_rotation)
-			flag = false;
 	}
 
 	eigenvalues.resize(n);
@@ -274,20 +291,149 @@ void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<
 		eigenvalues[i] = a(i, i);
 }
 
-void SVD_value(Matrix a, std::vector<double> eigenvalues, Matrix eigenvector, Matrix& U, Matrix& S, Matrix& V)
+void normalization(Matrix& eigenvectors, int n)
 {
-	std::sort(eigenvalues.begin(), eigenvalues.end());
-	double r = -1;
-	for (int i = eigenvalues.size() - 1; i >= 0; i--)
+	for (int j = 0; j < n; j++)
 	{
-		if (eigenvalues[i] == 0)
+		double norm = 0;
+		for (int i = 0; i < n; i++)
+		{
+			double tmp = eigenvectors(i, j);
+			norm += tmp * tmp;
+		}
+		norm = std::sqrt(norm);
+		for (int i = 0; i < n; i++)
+		{
+			eigenvectors(i, j, eigenvectors(i, j) / norm);
+		}
+	}
+}
+
+void SVD_matrix(Matrix A, int n, int m, std::vector<double> eigenvalues, Matrix eigenvectors, Matrix& U, Matrix& S, Matrix& V)
+{
+	// n > m
+	U = eigenvectors; // m * m
+	normalization(U, n);
+
+	std::vector<double> sindular_num = eigenvalues; // 1 * m
+	for (int i = 0; i < m; i++)
+		sindular_num[i] = std::sqrt(sindular_num[i]); // negative eigen values not possible
+	std::sort(sindular_num.begin(), sindular_num.end(), std::greater<>());
+
+	// find index zero singular number
+	int r = m;
+	int i = r - 1;
+	while (i < m && i == r - 1)
+	{
+		if (sindular_num[i] == 0)
 			r = i;
+		i--;
 	}
 
+	// calculation V
+	V = A * U; // n * n
+	for (int j = 0; j < r; j++)
+	{
+		double sig = sindular_num[j];
+		for (int i = 0; i < n; i++)
+		{
+			V(i, j, V(i, j) / sig);
+		}
+	}
 
+	// V add to ortogonal base (r+1...n)
+
+	S = Matrix(n, m); // n * m
+	for (int i = 0; i < r; i++)
+	{
+		S(i, i, sindular_num[i]);
+	}
+}
+
+void SVD(Matrix A, int n, int m, Matrix& U, Matrix& S, Matrix& V)
+{
+	bool conjugate = false;
+	if (m > n)
+	{
+		A.transposition();
+		std::swap(n, m);
+		conjugate = true;
+	}
+
+	Matrix A_t(A);
+	std::vector<double> eigenvalues;
+	Matrix eigenvectors;
+
+	Matrix gram;
+	gram = A_t.transposition() * A; // n * n
+
+	switch (n)
+	{
+		//case 3:
+		//{
+		//	//Cardano_real_number()
+		//  // find eigenvectors
+		//	break;
+		//}
+		//case 4:
+		//{
+
+		//	break;
+		//}
+		default:
+		{
+			double epsilon_elem = 0.0001;
+			int max_iteration = 20;
+			Jacobi(gram, n, epsilon_elem, 20, eigenvalues, eigenvectors);
+			break;
+		}
+	}
+
+	SVD_matrix(A, n, m, eigenvalues, eigenvectors, U, S, V);
+
+	if (conjugate)
+	{
+		U.transposition();
+		S.transposition();
+		V.transposition();
+	}
 }
 
 int main()
+{
+	int n = 3, m = 3;
+	std::vector<std::vector<double>> A;
+	A.resize(n);
+	for (int i = 0; i < A.size(); i++)
+		A[i].resize(m);
+
+	//m = { {1,1,3}, {1,5,1}, {3,1,1} };
+	A = { { 4, 3, 2 }, { -2,5,0 }, { 2,0,6 } };
+
+	Matrix T, U, S, V;
+	SVD(A, n, m, U, S, V);
+
+	std::cout << "input" << std::endl;
+	std::cout << A << std::endl;
+
+	std::cout << "SVD: " << std::endl;
+	std::cout << "U: " << std::endl;
+	std::cout << U << std::endl;
+	std::cout << "S: " << std::endl;
+	std::cout << S << std::endl;
+	std::cout << "V: " << std::endl;
+	std::cout << V << std::endl;
+
+	Matrix CHECK;
+	CHECK = V * S * U.transposition();
+
+	std::cout << "CHECK" << std::endl;
+	std::cout << CHECK << std::endl;
+
+	return 0;
+}
+
+int main2()
 {
 	//int n = 4, m = 3;
 	//std::vector<double> a {5, 0, 10, 6};
@@ -300,8 +446,9 @@ int main()
 	for (int i = 0; i < m.size(); i++)
 		m[i].resize(rows);
 
-	m = { {1,1,3}, {1,5,1}, {3,1,1} };
-	
+	//m = { {1,1,3}, {1,5,1}, {3,1,1} };
+	m = { { 4, 3, 2 }, { -2,5,0 }, { 2,0,6 } };
+
 // -----------------------------------------------------------------------
 	//std::vector<double> lambda_poly = multiply_polynomials(
 	//	multiply_polynomials({ m[0][0], -1 }, 2, { m[1][1], -1 }, 2),
@@ -348,13 +495,17 @@ int main()
 
 	// Jacobi
 	Matrix test(matrix_double{{ 1, 1, 3 }, { 1,5,1 }, { 3,1,1 }});
+	//Matrix test(matrix_double{ { 4, -2, 2 }, { -2,5,0 }, { 2,0,6 } });
 	double epsilon_elem = 0.0001;
-	std::vector<double> eigenvalues;
-	Matrix T;
+	std::vector<double> eigenvalues_jacobi;
+	Matrix T, U, S, V;
 
-	Jacobi(test, 3, epsilon_elem, 20, eigenvalues, T);
+	Jacobi(test, 3, epsilon_elem, 20, eigenvalues_jacobi, T);
 
-	//SVD_value();
+	SVD_matrix(a, cols, rows, eigenvalues_jacobi, T, U, S, V);
+
+	Matrix RES;
+	RES = V * S * U.transposition();
 
 	return 0;
 }

@@ -21,7 +21,7 @@ public:
 
 	friend std::ostream& operator << (std::ostream& fo, const Matrix& M);
 
-	void transposition();
+	Matrix& transposition();
 	void reverse();
 	void determinant();
 };
@@ -111,7 +111,7 @@ std::ostream& operator << (std::ostream& fo, const Matrix& M)
 	return fo;
 }
 
-void Matrix::transposition()
+Matrix& Matrix::transposition()
 {
 	std::vector<std::vector<double>> m_new;
 	m_new.resize(rows);
@@ -125,4 +125,5 @@ void Matrix::transposition()
 		}
 	}
 	matrix = m_new;
+	return *this;
 }
