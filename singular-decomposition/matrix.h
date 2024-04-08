@@ -10,16 +10,16 @@ public:
 	Matrix() : cols(0), rows(0) {}
 	Matrix(const Matrix& M);
 	Matrix(std::vector<std::vector<double>> _matrix);
-	Matrix(int _cols, int _rows);
+	Matrix(int _rows, int _cols);
 	~Matrix();
 
 	double& operator () (int i, int j) { return matrix[i][j]; }	// get elem
-	void operator()(int i, int j, double data) { matrix[i][j] = data; }   // set elem
-	Matrix operator * (const Matrix&);
-	Matrix operator + (const Matrix&);
-	Matrix operator - (const Matrix&);
+	void operator()(int i, int j, double data) { matrix[i][j] = data; } // set elem
+	Matrix operator* (const Matrix&);
+	Matrix operator+ (const Matrix&);
+	Matrix operator- (const Matrix&);
 
-	friend std::ostream& operator << (std::ostream& fo, const Matrix& M);
+	friend std::ostream& operator<< (std::ostream& fo, const Matrix& M);
 
 	Matrix& transposition();
 	void reverse();
@@ -42,23 +42,23 @@ Matrix::Matrix(const Matrix& M)
 
 Matrix::Matrix(std::vector<std::vector<double>> _matrix)
 {
-	cols = _matrix.size();
-	rows = _matrix[0].size();
+	rows = _matrix.size();
+	cols = _matrix[0].size();
 	matrix = _matrix;
 }
 
-Matrix::Matrix(int _cols, int _rows)
+Matrix::Matrix(int _rows, int _cols)
 {
-	matrix.resize(_cols);
+	matrix.resize(_rows);
 	for (int i = 0; i < matrix.size(); i++)
-		matrix[i].resize(_rows);
+		matrix[i].resize(_cols);
 	cols = _cols;
 	rows = _rows;
 }
 
 Matrix::~Matrix() { }
 
-Matrix Matrix::operator * (const Matrix& M)
+Matrix Matrix::operator* (const Matrix& M)
 {
 	Matrix res(rows, M.cols);
 	if (cols == M.rows)
@@ -75,7 +75,7 @@ Matrix Matrix::operator * (const Matrix& M)
 	return res;
 }
 
-Matrix Matrix::operator + (const Matrix& M)
+Matrix Matrix::operator+ (const Matrix& M)
 {
 	Matrix res(*this);
 	if (rows == M.rows && cols == M.cols)
@@ -87,7 +87,7 @@ Matrix Matrix::operator + (const Matrix& M)
 	return res;
 }
 
-Matrix Matrix::operator - (const Matrix& M)
+Matrix Matrix::operator- (const Matrix& M)
 {
 	Matrix res(*this);
 	if (rows == M.rows && cols == M.cols)
@@ -99,7 +99,7 @@ Matrix Matrix::operator - (const Matrix& M)
 	return res;
 }
 
-std::ostream& operator << (std::ostream& fo, const Matrix& M)
+std::ostream& operator<< (std::ostream& fo, const Matrix& M)
 {
 	for (int i = 0; i < M.rows; i++)
 	{
@@ -114,16 +114,17 @@ std::ostream& operator << (std::ostream& fo, const Matrix& M)
 Matrix& Matrix::transposition()
 {
 	std::vector<std::vector<double>> m_new;
-	m_new.resize(rows);
+	m_new.resize(cols);
 	for (int i = 0; i < m_new.size(); i++)
-		m_new[i].resize(cols);
-	for (int i = 0; i < cols; i++)
+		m_new[i].resize(rows);
+	for (int i = 0; i < rows; i++)
 	{
-		for (int j = 0; j < rows; j++)
+		for (int j = 0; j < cols; j++)
 		{
 			m_new[j][i] = matrix[i][j];
 		}
 	}
 	matrix = m_new;
+	std::swap(cols, rows);
 	return *this;
 }

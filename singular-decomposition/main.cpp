@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "matrix.h"
+#include "math_utils.h"
 
 #define M_PI	3.14159265358979323846
 #define matrix_double std::vector<std::vector<double>>
@@ -39,17 +40,57 @@ std::vector<double> multiply_polynomials(std::vector<double> a, int n, std::vect
 	return res;
 }
 
-double cube_root(double x)
+/*
+* input:
+*	poly - polynomial of the secont degree
+* result:
+*	answer - two roots
+* return: count roots
+*/
+int Cubic_equations(std::vector<double> poly, std::vector<std::complex<double>>& answer)
 {
-	if (x > 0)
+	if (poly.size() != 3)
 	{
-		return std::pow(x, 1.0 / 3.0);
+		return 0;
+	}
+
+	int count_root = 2;
+	double D = std::pow(poly[1], 2) - 4 * poly[2] * poly[0];
+	double D_sqrt = std::sqrt(std::abs(D));
+	if (D > 0)
+	{
+		answer.resize(2);
+		answer[0].real((-poly[1] + D_sqrt) / (2. * poly[2]));
+		answer[0].imag(0.);
+
+		answer[1].real((-poly[1] - D_sqrt) / (2. * poly[2]));
+		answer[1].imag(0.);
+	}
+	else if (D < 0)
+	{
+		answer.resize(2);
+		answer[0].real(-poly[1] / (2. * poly[2]));
+		answer[0].imag(D_sqrt / (2. * poly[2]));
+
+		answer[1].real(-poly[1] / (2. * poly[2]));
+		answer[1].imag(-D_sqrt / (2. * poly[2]));
 	}
 	else {
-		return -std::pow(-x, 1.0 / 3.0);
+		answer.resize(1);
+		answer[0].real(-poly[1] / (2. * poly[2]));
+		answer[0].imag(0.);
+		count_root = 1;
 	}
+
+	return count_root;
 }
 
+/*
+* input:
+*	poly - polynomial of the third degree
+* result:
+*	answer - three roots
+*/
 void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<double>>& answer)
 {
 	if (poly.size() != 4)
@@ -66,7 +107,7 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 
 	/*
 	* kardano
-	* x^3 + px + q = 0;
+	* x^3 + px + q = 0
 	*/
 
 	double p = poly[1] - std::pow(poly[2], 2) / 3.0;
@@ -76,8 +117,8 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	if (D > 0)
 	{
 		// x0 - R, x1, x2 - C
-		double alpha = cube_root((-q / 2.0 + std::sqrt(D)));
-		double beta = cube_root((-q / 2.0 - std::sqrt(D)));
+		double alpha = MATH_utils::cube_root((-q / 2.0 + std::sqrt(D)));
+		double beta = MATH_utils::cube_root((-q / 2.0 - std::sqrt(D)));
 
 		answer[0].real(alpha + beta);
 		answer[0].imag(0.);
@@ -119,7 +160,7 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	}
 	else {
 		// x0, x1 == x2 - R
-		double alpha = cube_root((-q / 2.0));
+		double alpha = MATH_utils::cube_root((-q / 2.0));
 	
 		answer[0].real(2.0 * alpha);
 		answer[0].imag(0.);
@@ -138,6 +179,84 @@ void Cardano_real_number(std::vector<double> poly, std::vector<std::complex<doub
 	return;
 }
 
+/*
+* input:
+*	poly - polynomial of the fourth degree
+* result:
+*	answer - four roots
+*/
+void Ferrari_real_number(std::vector<double> poly, std::vector<std::complex<double>>& answer)
+{
+	if (poly.size() != 5)
+	{
+		return;
+	}
+	answer.resize(4);
+
+	for (int i = 3; i >= 0; i--)
+	{
+		poly[i] /= poly[4];
+	}
+	poly[4] = 1;
+
+	/*
+	* calculate cubic resolvent
+	* 2s^3 - ps^2 - 2rs + rp - q^4/4 = 0
+	*/ 
+	std::vector<double> resolvent;
+	std::vector<std::complex<double>> answer_resolvent;
+	resolvent.resize(4);
+
+	double p, q, r;
+	p = poly[2] - 3 * std::pow(poly[3], 2) / 8;
+	q = std::pow(poly[3], 3) / 8 - poly[3] * poly[2] / 2 + poly[1];
+	r = poly[0] - poly[1] * poly[3] / 4 + std::pow(poly[3], 2) * poly[2] / 16 - 3 * std::pow(poly[3], 4) / 256;
+	resolvent[0] = r * p - std::pow(q, 2) / 4;
+	resolvent[1] = -2 * r;
+	resolvent[2] = -p;
+	resolvent[3] = 2;
+
+	Cardano_real_number(resolvent, answer_resolvent);
+
+	double real_ans = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		if (answer_resolvent[i].imag() == 0)
+		{
+			real_ans = answer_resolvent[i].real();
+			break;
+		}
+	}
+
+	// solving cubic equations
+	std::vector<std::complex<double>> answer_cubic;
+	std::vector<double> poly_cubic;
+	poly_cubic.resize(3);
+	poly_cubic[0] = q / (2 * std::sqrt(2 * real_ans - p)) + real_ans;
+	poly_cubic[1] = -std::sqrt(2 * real_ans - p);
+	poly_cubic[2] = 1.;
+	if (Cubic_equations(poly_cubic, answer_cubic) == 2) // !!! == 2 ???
+	{
+		answer[0] = answer_cubic[0];
+		answer[1] = answer_cubic[1];
+	}
+
+	answer_cubic.clear();
+	poly_cubic[0] = -q / (2 * std::sqrt(2 * real_ans - p)) + real_ans;
+	poly_cubic[1] = std::sqrt(2 * real_ans - p);
+	poly_cubic[2] = 1.;
+	if (Cubic_equations(poly_cubic, answer_cubic) == 2)
+	{
+		answer[2] = answer_cubic[0];
+		answer[3] = answer_cubic[1];
+	}
+
+	answer[0].real(answer[0].real() - poly[3] / (4 * poly[4]));
+	answer[1].real(answer[1].real() - poly[3] / (4 * poly[4]));
+	answer[2].real(answer[2].real() - poly[3] / (4 * poly[4]));
+	answer[3].real(answer[3].real() - poly[3] / (4 * poly[4]));
+}
+
 // find maximum element modem under diagonal
 bool find_max(Matrix& a, int n, double epsilon, std::pair<int, int>& max_index)
 {
@@ -153,17 +272,6 @@ bool find_max(Matrix& a, int n, double epsilon, std::pair<int, int>& max_index)
 				max_index.second = j;
 			}
 	return max == -1 ? false : true;
-}
-
-double sign(double x)
-{
-	if (x < 0)
-		return -1.;
-	
-	if (x > 0)
-		return 1.;
-
-	return 0;
 }
 
 /*
@@ -212,7 +320,7 @@ void Jacobi(Matrix a, int n, double epsilon_elem, int max_rotation, std::vector<
 			else {
 				double r = std::abs(q) / (2. * d);
 				c = std::sqrt(0.5 + r);
-				s = std::sqrt(0.5 - r) * sign(p * q);
+				s = std::sqrt(0.5 - r) * MATH_utils::sign(p * q);
 			}
 
 			// multiplication: B = T'*A*T
@@ -313,7 +421,7 @@ void SVD_matrix(Matrix A, int n, int m, std::vector<double> eigenvalues, Matrix 
 {
 	// n > m
 	U = eigenvectors; // m * m
-	normalization(U, n);
+	normalization(U, m);
 
 	std::vector<double> sindular_num = eigenvalues; // 1 * m
 	for (int i = 0; i < m; i++)
@@ -330,8 +438,9 @@ void SVD_matrix(Matrix A, int n, int m, std::vector<double> eigenvalues, Matrix 
 		i--;
 	}
 
-	// calculation V
-	V = A * U; // n * n
+	// calculation V - n * n
+	V = A * U; // n * m
+	// add to n*n
 	for (int j = 0; j < r; j++)
 	{
 		double sig = sindular_num[j];
@@ -341,7 +450,7 @@ void SVD_matrix(Matrix A, int n, int m, std::vector<double> eigenvalues, Matrix 
 		}
 	}
 
-	// V add to ortogonal base (r+1...n)
+	// V add to ortogonal base (r+1...n) 
 
 	S = Matrix(n, m); // n * m
 	for (int i = 0; i < r; i++)
@@ -352,12 +461,12 @@ void SVD_matrix(Matrix A, int n, int m, std::vector<double> eigenvalues, Matrix 
 
 void SVD(Matrix A, int n, int m, Matrix& U, Matrix& S, Matrix& V)
 {
-	bool conjugate = false;
+	//bool conjugate = false;
 	if (m > n)
 	{
 		A.transposition();
 		std::swap(n, m);
-		conjugate = true;
+		//conjugate = true;
 	}
 
 	Matrix A_t(A);
@@ -384,31 +493,32 @@ void SVD(Matrix A, int n, int m, Matrix& U, Matrix& S, Matrix& V)
 		{
 			double epsilon_elem = 0.0001;
 			int max_iteration = 20;
-			Jacobi(gram, n, epsilon_elem, 20, eigenvalues, eigenvectors);
+			Jacobi(gram, m, epsilon_elem, 20, eigenvalues, eigenvectors);
 			break;
 		}
 	}
 
 	SVD_matrix(A, n, m, eigenvalues, eigenvectors, U, S, V);
 
-	if (conjugate)
-	{
-		U.transposition();
-		S.transposition();
-		V.transposition();
-	}
+	//if (conjugate)
+	//{
+	//	U.transposition();
+	//	S.transposition();
+	//	V.transposition();
+	//}
 }
 
-int main()
+// test svd
+int main2()
 {
-	int n = 3, m = 3;
-	std::vector<std::vector<double>> A;
-	A.resize(n);
-	for (int i = 0; i < A.size(); i++)
-		A[i].resize(m);
+	int n = 0, m = 0;
 
-	//m = { {1,1,3}, {1,5,1}, {3,1,1} };
-	A = { { 4, 3, 2 }, { -2,5,0 }, { 2,0,6 } };
+	//n = 2; m = 4;
+	//Matrix A ({ { 1, 1, 1, 1 }, {1, 1, 1, 1} });
+
+	n = 3; m = 3;
+	Matrix A({ {1,1,3}, {1,5,1}, {3,1,1} });
+	//Matrix A({ { 4, 3, 2 }, { -2,5,0 }, { 2,0,6 } });
 
 	Matrix T, U, S, V;
 	SVD(A, n, m, U, S, V);
@@ -433,7 +543,69 @@ int main()
 	return 0;
 }
 
-int main2()
+
+//void random_matrix(double**& matrix, double*& xlist, double*& eigenvalues, int& minLamInd, int N, int range)
+//{
+//	eigenvalues = new double[N]; //соб значения матрицы
+//	double* w = new double[N];
+//	double* e = new double[N]; // единичный вектор
+//	matrix = new double* [N];
+//	for (int i = 0; i < N; i++)
+//		matrix[i] = new double[i];
+//	double	wlength = 0;
+//
+//	srand(time(0));
+//	for (int i = 0; i < N; i++)
+//	{
+//		eigenvalues[i] = -range + 2 * (rand() % range);
+//		if (fabs(eigenvalues[i]) < fabs(eigenvalues[minLamInd]))
+//			minLamInd = i;
+//		w[i] = -range + 2 * (rand() % range);
+//		e[i] = 1;
+//	}
+//
+//	wlength = 1 / norm(w, N);
+//	for (int i = 0; i < N; i++)
+//		w[i] *= wlength;
+//	Matrix Lambda(N, N, eigenvalues, true); //диагональная матрица с соб значениями на диагнонали
+//	Matrix W(N, 1, w); //вектор w
+//	//cout << W;
+//	Matrix Wt(1, N, w); //транспонированный вектор
+//	Matrix E(N, N, e, true); //единичная матрица
+//	Matrix H = E - (W * Wt) * 2;
+//	//cout << H;
+//	Matrix A = H * Lambda * H;
+//	std::cout << A << std::endl;
+//
+//	xlist = new double[N];
+//	for (int i = 0; i < N; i++)
+//		xlist[i] = H(i, minLamInd); //компоненты реального собственного вектора, отвечающего макс. соб значению
+//
+//	for (int i = 0; i < N; i++)
+//		for (int j = 0; j < N; j++)
+//			matrix[i][j] = A(i, j);
+//}
+
+
+// Ferrari test
+int main()
+{
+	std::vector<std::complex<double>> answer;
+	std::vector<double> poly;
+	poly.resize(5);
+	poly[0] = -10;
+	poly[1] = 16;
+	poly[2] = -5;
+	poly[3] = 3;
+	poly[4] = 2;
+
+	Ferrari_real_number(poly, answer);
+
+	return 0;
+}
+
+// test solve equation
+int main3()
 {
 	//int n = 4, m = 3;
 	//std::vector<double> a {5, 0, 10, 6};
@@ -446,8 +618,8 @@ int main2()
 	for (int i = 0; i < m.size(); i++)
 		m[i].resize(rows);
 
-	//m = { {1,1,3}, {1,5,1}, {3,1,1} };
-	m = { { 4, 3, 2 }, { -2,5,0 }, { 2,0,6 } };
+	m = { {1,1,3}, {1,5,1}, {3,1,1} };
+	//m = { { 4, 3, 2 }, { -2,5,0 }, { 2,0,6 } };
 
 // -----------------------------------------------------------------------
 	//std::vector<double> lambda_poly = multiply_polynomials(
@@ -502,7 +674,7 @@ int main2()
 
 	Jacobi(test, 3, epsilon_elem, 20, eigenvalues_jacobi, T);
 
-	SVD_matrix(a, cols, rows, eigenvalues_jacobi, T, U, S, V);
+	SVD_matrix(test, cols, rows, eigenvalues_jacobi, T, U, S, V);
 
 	Matrix RES;
 	RES = V * S * U.transposition();
