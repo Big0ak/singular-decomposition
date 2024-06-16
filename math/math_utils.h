@@ -1,8 +1,12 @@
 #pragma once
 
+#include "cmath"
+
+#define M_PI	3.14159265358979323846
+
 namespace MATH_utils
 {
-	double cube_root(double x)
+	inline double cube_root(double x)
 	{
 		if (x > 0)
 		{
@@ -13,7 +17,7 @@ namespace MATH_utils
 		}
 	}
 
-	double sign(double x)
+	inline double sign(double x)
 	{
 		if (x < 0)
 			return -1.;
