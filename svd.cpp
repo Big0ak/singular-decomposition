@@ -17,12 +17,13 @@ SVD::~SVD()
 
 bool SVD::solve(Matrix A, int n, int m, Matrix& U, Matrix& S, Matrix& V)
 {
-	//bool conjugate = false;
+	bool conjugate = false;
+	
 	if (m > n)
 	{
 		A.transposition();
 		std::swap(n, m);
-		//conjugate = true;
+		conjugate = true;
 	}
 
 	Matrix A_t(A);
@@ -48,9 +49,9 @@ bool SVD::solve(Matrix A, int n, int m, Matrix& U, Matrix& S, Matrix& V)
 	default:
 	{
 		double epsilon_elem = 0.0001;
-		int max_iteration = 20;
+		int max_rotation = 50;
 		Jacobi jacobi(gram, m);
-		if (jacobi.solve(epsilon_elem, 20) == false)
+		if (jacobi.solve(epsilon_elem, max_rotation) == false)
 		{
 			return false;
 		}
@@ -64,54 +65,88 @@ bool SVD::solve(Matrix A, int n, int m, Matrix& U, Matrix& S, Matrix& V)
 
 	SVD_matrix(A, n, m, eigenvalues, eigenvectors, U, S, V);
 
-	//if (conjugate)
-	//{
-	//	U.transposition();
-	//	S.transposition();
-	//	V.transposition();
-	//}
+	if (conjugate)
+	{
+		//U.transposition();
+		//S.transposition(); // !!
+		//V.transposition();
+	}
+
+	return true;
 }
 
 void SVD::SVD_matrix(Matrix A, int n, int m, std::vector<double> eigenvalues, Matrix eigenvectors, Matrix& U, Matrix& S, Matrix& V)
 {
-	// n > m
-	U = eigenvectors; // m * m
+	// n - row, m - cols
+	// necessary n > m 
+	U = eigenvectors; // U - m * m
 	normalization(U, m);
 
 	std::vector<double> singular_num = eigenvalues; // 1 * m
 	for (int i = 0; i < m; i++)
+	{
 		singular_num[i] = std::sqrt(singular_num[i]); // negative eigen values not possible
-	std::sort(singular_num.begin(), singular_num.end(), std::greater<>());
+	}
+		
+	// sort singular num on decreasing
+	for (int left = 0; left < m; left++)
+		for (int i = m-1; i > left; i--)
+		{
+			if (singular_num[i] > singular_num[i - 1])
+			{
+				std::swap(singular_num[i], singular_num[i - 1]);
+				U.swap_colums(i, i - 1);
+			}
+		}
 
 	// find index zero singular number
 	int r = m;
-	int i = r - 1;
-	while (i < m && i == r - 1)
+	int index = r - 1;
+	while (index < m && index == r - 1)
 	{
-		if (singular_num[i] == 0)
-			r = i;
-		i--;
+		if (singular_num[index] == 0)
+			r = index;
+		index--;
 	}
 
-	// calculation V - n * n
-	V = A * U; // n * m
-	// add to n*n
-	for (int j = 0; j < r; j++)
+	V = Matrix(n, n); // V - n * n
+	for (int j = 0; j < r; j++) // r < m
 	{
+		// V[i] = A*U[j] / singular_num[i]
 		double sig = singular_num[j];
+		double x = 0;
 		for (int i = 0; i < n; i++)
 		{
-			V(i, j, V(i, j) / sig);
+			x = 0;
+			for (int k = 0; k < m; k++)
+			{
+				x += A(i, k) * U(k, j);
+			}
+			V(i, j, x / sig);
 		}
 	}
+	// have: V - n * r (r <= n <= m)
+	// V add to ortogonal base (r+1...n)
+	Addition_base(V, n, n, r);
 
-	// V add to ortogonal base (r+1...n) 
-
-	S = Matrix(n, m); // n * m
+	S = Matrix(n, m); // S - n * m
 	for (int i = 0; i < r; i++)
 	{
 		S(i, i, singular_num[i]);
 	}
+}
+
+bool SVD::Addition_base(Matrix& A, int n, int m, int r)
+{
+	if (r == m)
+		return true;
+
+
+
+	Matrix A_t(A);
+	Matrix check = A_t * A; // if one matrix -> true;
+
+	return true;
 }
 
 void SVD::normalization(Matrix& eigenvectors, int n)
@@ -131,6 +166,8 @@ void SVD::normalization(Matrix& eigenvectors, int n)
 		}
 	}
 }
+
+
 
 // [0, x, x^2, x^3 ...]
 std::vector<double> multiply_polynomials(std::vector<double> a, int n, std::vector<double> b, int m)

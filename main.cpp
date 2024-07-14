@@ -5,15 +5,14 @@
 #include <complex>
 #include <algorithm>
 #include <cstring>
+#include <ctime>
 
-//#include "math/solving_equation.h"
-#//include "tests/test.h"
-//#include "math/matrix.h"
-//#include "math/math_utils.h"
 #include "svd.h"
 #include "eigenvalues/Jacobi.h"
 
 #define matrix_double std::vector<std::vector<double>>
+
+double culculate_accuracy(Matrix& A, Matrix& B, int n, int m);
 
 // test svd
 int main()
@@ -23,29 +22,74 @@ int main()
 	n = 3; m = 3;
 	Matrix A({ {1,1,3}, {1,5,1}, {3,1,1} });
 
+	//n = 4; m = 3;
+	//Matrix A({ {1,1,3}, {1,5,1}, {3,1,1}, {2,1,4}});
+
+	//n = 3; m = 4;
+	//Matrix A({ {1,1,3,2}, {1,5,1,1}, {3,1,1,4}});
+
+	//// random matrix
+	//n = 10; m = 10;
+	//int range = 1;
+	//Matrix A(n, m);
+	//std::srand(time(0));
+	//double val = 0;
+	//for (int i = 0; i < n; i++)
+	//	for (int j = 0; j < m; j++)
+	//	{
+	//		val = -range + 2 * (rand() % range);
+	//		A(i, j, abs(val));
+	//	}
+
 	Matrix U, S, V;
 	SVD svd;
-	svd.solve(A, n, m, U, S, V);
+	if (svd.solve(A, n, m, U, S, V))
+	{
+		std::cout << "input" << std::endl;
+		std::cout << A << std::endl;
 
-	std::cout << "input" << std::endl;
-	std::cout << A << std::endl;
+		std::cout << "SVD: " << std::endl;
+		std::cout << "U: " << std::endl;
+		std::cout << U << std::endl;
+		std::cout << "S: " << std::endl;
+		std::cout << S << std::endl;
+		std::cout << "V: " << std::endl;
+		std::cout << V << std::endl;
 
-	std::cout << "SVD: " << std::endl;
-	std::cout << "U: " << std::endl;
-	std::cout << U << std::endl;
-	std::cout << "S: " << std::endl;
-	std::cout << S << std::endl;
-	std::cout << "V: " << std::endl;
-	std::cout << V << std::endl;
+		Matrix CHECK;
+		if (n >= m)
+		{
+			CHECK = V * S * U.transposition();
+		}
+		else {
+			CHECK = U * S.transposition() * V.transposition(); // conjugate
+		}
 
-	Matrix CHECK;
-	CHECK = V * S * U.transposition();
+		std::cout << "CHECK" << std::endl;
+		std::cout << CHECK << std::endl;
 
-	std::cout << "CHECK" << std::endl;
-	std::cout << CHECK << std::endl;
+		double accuracy = culculate_accuracy(A, CHECK, n, m);
+		std::cout << "accuracy: " << accuracy;
+	}
+	else {
+		std::cout << "can't fing eigenvalus";
+	}
 
 	return 0;
 }
+
+
+double culculate_accuracy(Matrix& A, Matrix& B, int n, int m)
+{
+	double accuracy = 0;
+	for (int i = 0; i < n; i++)
+		for (int j = 0; j < m; j++)
+		{
+			accuracy += abs(A(i, j) - B(i, j));
+		}
+	return accuracy / (n*m);
+}
+
 
 // test Jacobi
 int main2()

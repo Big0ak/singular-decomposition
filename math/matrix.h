@@ -24,6 +24,8 @@ public:
 	friend std::ostream& operator<< (std::ostream& fo, const Matrix& M);
 
 	Matrix& transposition();
+	// index start at zero
+	bool swap_colums(int first, int second); 
 	void reverse();
 	void determinant();
 };

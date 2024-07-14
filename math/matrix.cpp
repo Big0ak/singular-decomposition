@@ -112,3 +112,16 @@ Matrix& Matrix::transposition()
 	std::swap(cols, rows);
 	return *this;
 }
+
+bool Matrix::swap_colums(int first, int second)
+{
+	if (first >= cols || second >= cols)
+	{
+		return false;
+	}
+
+	for (int i = 0; i < rows; i++)
+	{
+		std::swap(matrix[i, first], matrix[i, second]);
+	}
+}
